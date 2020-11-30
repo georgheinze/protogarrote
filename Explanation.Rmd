@@ -100,8 +100,9 @@ pred.hf
 ```
 
 For simplicity, we assume that their effect is as follows:
-* for the first 5 predictive x: -0.1 + x*log2eGFR*0.1 (negative for the second 5)
-* for the first 5 predictive d: -0.1 + d*log2eGFR*0.1 (negative for the second 5)
+
+* for the first 5 predictive x: -0.1 + x$\cdot$log2eGFR$\cdot$0.1 (negative for the second 5)
+* for the first 5 predictive d: -0.1 + d$\cdot$log2eGFR$\cdot$0.1 (negative for the second 5)
 * for age: just 0.01
 
 ```{r}
@@ -134,6 +135,7 @@ the data object should consist of a list with
 * clinical: matrix of clinical covariates
 * y: outcome variable
 
+
 ```{r}
 x <- as.matrix(dataset[, paste0("x.", 1:k,sep="")])
 d <- as.matrix(dataset[, paste0("d.", 1:k,sep="")])
@@ -144,7 +146,7 @@ log2eGFR <- dataset$log2eGFR
 data.obj<-list(x=x, d=d, clinical=cbind(age, sex), y=log2eGFR)
 ```
 
-Fitting the model with 11 values for lambda1 and 11 values for lambda2. The model will first generate the values for lambda1, and for each lambda1 generate a new sequence of lambda2 values. These lambda2 values are then stored in a matrix with one row for each lambda1 value. The rownames of the matrix are the values for lambda 1. The `outer` option just repeates the cross-validation to get variability out. The `cv` value determines how many 'folds' are generated in the cross-validation.
+Fitting the model with 11 values for lambda1 and 11 values for lambda2. The model will first generate the values for lambda1, and for each lambda1 generate a new sequence of lambda2 values. These lambda2 values are then stored in a matrix with one row for each lambda1 value. The rownames of the matrix are the values for lambda 1. The `outer` option just repeats the cross-validation to get variability out. The `cv` value determines how many 'folds' are generated in the cross-validation.
 
 ```{r}
 #fit.simple <- lm(data.obj$y~data.obj$x+data.obj$d+data.obj$clinical)
@@ -250,17 +252,16 @@ and plot the cross-validation:
 plot.protogarrote(fit3)
 ```
 
-Let's check the coefficients:
+Let's check the coefficients (the `order` option sets the ordering by the D coefficients):
 
 ```{r}
-plot.coefficients.protogarrote(fit3)
+plot.coefficients.protogarrote(fit3, order="d")
 ```
 
-In fact, not many proteomics were selected.
 
 ```{r}
 betas<-coefficients.protogarrote(fit3)
-(betas.hot<-betas[betas!=0])
+t(t(betas.hot<-betas[betas!=0]))
 ```
 
 
@@ -291,14 +292,14 @@ plot.protogarrote(fit4)
 And we plot the apparent predictions vs. the true status:
 
 ```{r}
-boxplot(fit4$fit$fitted.values~ dataset$hf)
+boxplot(plogis(fit4$fit$fitted.values)~ dataset$hf, ylim=c(0,1))
 ```
 
 Now let's see the coefficients for the proteomics:
 
 ```{r}
 (pcp<-plot.coefficients.protogarrote(fit4, order="d"))
-pcp$selected
+
 
 # these were the peptides used to generate the HF data:
 sort(predictive)
@@ -313,6 +314,6 @@ etafit4<-predict.protogarrote(fit4, newdata=data.obj, type="link")
 summary(calibfit4<-glm(dataset$hf~etafit4, family="binomial"))
 ```
 
-The calibration slope is `r coef(calibfit4)[2]` which seems to point at underfit -> strong shrinkage.
+The calibration slope is `r coef(calibfit4)[2]` which seems to point at underfit -> strong shrinkage, which should guard against overfit when the model is applied to new data.
 
 
