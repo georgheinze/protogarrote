@@ -247,11 +247,13 @@ plot.coefficients.protogarrote<-function(obj, order="none", scale=c(1,1,1,1), pl
     beta.x <- beta.x[ord]
     beta.d <- beta.d[ord]
     xrange <- range(beta.x*scale[1], beta.d*scale[2])
-    plot(beta.x*scale[1], 1:length(beta.x), type="o", xlim=xrange, xlab="beta (scaled)", ylab="Coefficient")
-    points(beta.d*scale[2], 1:length(beta.d), type="o", lty=2, col="red")
-    for(i in 1:length(beta.x)) lines(xrange, c(i,i), lty=3, col="grey")
-    legend("bottomright", pch=c("o","o"), lty=c(1,2), col=c("black","red"), legend=c("X","D"))
-    abline(v=0, col="grey")
+    if(plot){
+      plot(beta.x*scale[1], 1:length(beta.x), type="o", xlim=xrange, xlab="beta (scaled)", ylab="Coefficient")
+      points(beta.d*scale[2], 1:length(beta.d), type="o", lty=2, col="red")
+      for(i in 1:length(beta.x)) lines(xrange, c(i,i), lty=3, col="grey")
+      legend("bottomright", pch=c("o","o"), lty=c(1,2), col=c("black","red"), legend=c("X","D"))
+      abline(v=0, col="grey")
+    }
     return(list(beta=cbind(beta.x, beta.d), selected=set.u))
   }
   if(obj$fit.int){
@@ -284,13 +286,15 @@ plot.coefficients.protogarrote<-function(obj, order="none", scale=c(1,1,1,1), pl
     beta.ix <- beta.ix[ord]
     beta.id <- beta.id[ord]
     xrange <- range(beta.x*scale[1], beta.d*scale[2], beta.ix*scale[3], beta.id*scale[4])
-    plot(beta.x*scale[1], 1:length(beta.x), type="o", xlim=xrange, xlab="beta (scaled)", ylab="Coefficient")
-    points(beta.d*scale[2], 1:length(beta.d), type="o", lty=2, col="red")
-    points(beta.ix*scale[3], 1:length(beta.ix), type="o", lty=2, col="blue")
-    points(beta.id*scale[4], 1:length(beta.id), type="o", lty=2, col="green")
-    for(i in 1:length(beta.x)) lines(xrange, c(i,i), lty=3, col="grey")
-    legend("bottomright", pch=c("o","o"), lty=c(1,2), col=c("black","red", "blue", "green"), legend=c("X","D", "I*X", "I*D"))
-    abline(v=0, col="grey")
+    if(plot){
+      plot(beta.x*scale[1], 1:length(beta.x), type="o", xlim=xrange, xlab="beta (scaled)", ylab="Coefficient")
+      points(beta.d*scale[2], 1:length(beta.d), type="o", lty=2, col="red")
+      points(beta.ix*scale[3], 1:length(beta.ix), type="o", lty=2, col="blue")
+      points(beta.id*scale[4], 1:length(beta.id), type="o", lty=2, col="green")
+      for(i in 1:length(beta.x)) lines(xrange, c(i,i), lty=3, col="grey")
+      legend("bottomright", pch=c("o","o"), lty=c(1,2), col=c("black","red", "blue", "green"), legend=c("X","D", "I*X", "I*D"))
+      abline(v=0, col="grey")
+    }
     return(list(beta=cbind(beta.x, beta.d, beta.ix, beta.id), selected=set.u))
   }
 }  
