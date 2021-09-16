@@ -192,6 +192,14 @@ Let's have a look at the optimal coefficients:
 plot.coefficients.protogarrote(fit, order="d")
 ```
 
+To see the number of selected biomarkers, one can assess the L1 norm, e.g. here at the smallest ridge penalty.
+
+```{r}
+apply(coef(fit$glmnet.fit2[[11]]),2,sum)
+```
+
+
+
 ## Linear model with penalty factors
 
 Now let's prioritize those variables that have fewer zero values. We define the penalty (1= high penalty, 0=no penalty) for the peptides as follows:

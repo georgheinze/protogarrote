@@ -106,6 +106,7 @@ protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, 
   rownames(lambda) <- fit1$lambda
   
   # second step: positive lasso: easier and safer in a loop  
+  fit2 <- vector(mode = "list", length = nl1)
   for(i in 1:nl1){
     #          lambda1<-lambda$lambda1[i]
     beta1 <- coef(fit1)[,i]
@@ -121,25 +122,25 @@ protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, 
       partial.clinical <- matrix(sapply(1:ncol(clinical), function(j) xmat[,4*k+j] * beta1[4*k+j+1]), nrow(xmat), kclin,byrow=FALSE)
     }
     xmat2 <- as.matrix(cbind(partial.eta, partial.clinical))
-    fit2 <- glmnet(y=y, x=xmat2, family=family, alpha=alpha2, lower.limits=0, standardize=FALSE, nlambda=nl2)
-    lambda[i,]<-fit2$lambda
+    fit2[[i]] <- glmnet(y=y, x=xmat2, family=family, alpha=alpha2, lower.limits=0, standardize=FALSE, nlambda=nl2)
+    lambda[i,]<-fit2[[i]]$lambda
     if(all(c(i, ii)==index)){
       xmat2.save <- xmat2
     }
     for(ii in 1:nl2){
       if(!fit.int){
-        beta[,nl2*(i-1)+ii]<-c(coef(fit2)[1,ii], # intercept
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[2:(k+1),i], # x
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[(k+2):(2*k+1),i], # d
-                               coef(fit2)[(k+2):(k+1+kclin),ii]*coef(fit1)[(2*k+2):(2*k+1+kclin),i]) # clinical 
+        beta[,nl2*(i-1)+ii]<-c(coef(fit2[[i]])[1,ii], # intercept
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[2:(k+1),i], # x
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[(k+2):(2*k+1),i], # d
+                               coef(fit2[[i]])[(k+2):(k+1+kclin),ii]*coef(fit1)[(2*k+2):(2*k+1+kclin),i]) # clinical 
       }
       if(fit.int){
-        beta[,nl2*(i-1)+ii]<-c(coef(fit2)[1,ii], # intercept
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[2:(k+1),i], # x
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[(k+2):(2*k+1),i], # d
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[(2*k+2):(3*k+1),i], # x*int.x
-                               coef(fit2)[2:(k+1),ii]*coef(fit1)[(3*k+2):(4*k+1),i], # d*int.x
-                               coef(fit2)[(k+2):(k+1+kclin),ii]*coef(fit1)[(4*k+2):(4*k+1+kclin),i]) # clinical 
+        beta[,nl2*(i-1)+ii]<-c(coef(fit2[[i]])[1,ii], # intercept
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[2:(k+1),i], # x
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[(k+2):(2*k+1),i], # d
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[(2*k+2):(3*k+1),i], # x*int.x
+                               coef(fit2[[i]])[2:(k+1),ii]*coef(fit1)[(3*k+2):(4*k+1),i], # d*int.x
+                               coef(fit2[[i]])[(k+2):(k+1+kclin),ii]*coef(fit1)[(4*k+2):(4*k+1+kclin),i]) # clinical 
       }
     }
   } # now we have all nl1*nl2 beta vectors               
