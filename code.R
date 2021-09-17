@@ -1,4 +1,4 @@
-protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, penalties=1, family="gaussian", nlambda=c(11,11), cv=10, outer=2, alpha1=0, alpha2=0.99){
+protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, penalties=1, family="gaussian", nlambda=c(11,11), target.L1norm=20, cv=10, outer=2, alpha1=0, alpha2=0.99){
   require(glmnet)
   x<-data.obj[["x"]]
   d<-data.obj[["d"]]
@@ -43,6 +43,7 @@ protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, 
       y.test <- y[test]
       
       fit1 <- glmnet(y=y.devel, x=x.devel, family=family, alpha=alpha1, nlambda=nl1, penalty.factor =penalties)
+      if(length(fit1$lambda)<nl1) stop("In CV loop ", inner, ", number of evaluated lambdas (", length(fit1$lambda), ") smaller than ", nl1, ". Try nlambda[1] = ",length(fit1$lambda),".\n")
       # second step: positive lasso: easier and safer in a loop  
       for(i in 1:nl1){
         #          lambda1<-lambda$lambda1[i]
@@ -152,12 +153,24 @@ protogarrote<-function(data.obj, center.interaction.x=0, scale.interaction.x=1, 
   if(fit.int){
     names(coeffs)<-rownames(beta)<-c("(Intercept)", colnames(x), colnames(d), paste("i*", colnames(x), sep=""), paste("i*", colnames(d), sep=""), colnames(clinical))
   }
-  res<-list(call=match.call(), fit.int=fit.int, family=family, lambda=lambda, coefficients=beta, glmnet.fit1=fit1, glmnet.fit2=fit2, k=k, kclin=kclin, cv.pred.err=prederr,
+  df <- matrix(unlist(lapply(fit2, function(X) X$df)),nrow=nrow(lambda), ncol=ncol(lambda),byrow=TRUE)
+  L1norm <- matrix(unlist(lapply(fit2, function(X) apply(coef(X)[-1,],2,sum))),nrow=nrow(lambda), ncol=ncol(lambda),byrow=TRUE)
+  index.lambda.L1norm=c(nl1-1,which(L1norm[nl1-1,]==head(L1norm[nl1-1,][L1norm[nl1-1,]>=target.L1norm],1)))  # second smallest lambda1 hard-coded
+  lambda.L1norm=c(as.numeric(rownames(lambda)[index.lambda.L1norm[1]]),lambda[index.lambda.L1norm[1],index.lambda.L1norm[2]])  
+  lambda.min=c(as.numeric(rownames(lambda))[index[1]], lambda[index[1],index[2]])
+  names(lambda.L1norm)<-names(lambda.min)<-c("ridge","garrote")
+  
+  res<-list(call=match.call(), fit.int=fit.int, family=family, lambda=lambda, coefficients=beta, glmnet.fit1=fit1, glmnet.fit2=fit2, k=k, kclin=kclin, df=df, L1norm=L1norm, cv.pred.err=prederr,
             cv.rsquare=rsquare, se.pred.err=se.prederr, center.interaction.x=center.interaction.x, scale.interaction.x=scale.interaction.x,
-            fit=list(xmat=xmat, xmat2=xmat2, lambda=lambda, lambda.min=c(as.numeric(rownames(lambda))[index[1]], lambda[index[1],index[2]]), 
-                     coefficients=coeffs, 
-                     fitted.values=cbind(1,xmat) %*% beta[,nl2*(index[1]-1)+index[2]]))
-  attr(res,"class")<-"protogarrotte"
+            fit=list(xmat=xmat, xmat2=xmat2, lambda=lambda, lambda.min=lambda.min, 
+                     coefficients=coeffs, beta=beta, 
+                     coeffs.L1norm=beta[,nl2*(index.lambda.L1norm[1]-1)+index.lambda.L1norm[2]],
+                     index.lambda.min=c(index[1], index[2]), 
+                     index.lambda.L1norm=index.lambda.L1norm, 
+                     lambda.L1norm=lambda.L1norm,
+                     fitted.values=cbind(1,xmat) %*% beta[,nl2*(index[1]-1)+index[2]],
+                     fitted.values.L1norm=cbind(1,xmat) %*% beta[,nl2*(index.lambda.L1norm[1]-1)+index.lambda.L1norm[2]]))
+attr(res,"class")<-"protogarrotte"
   return(res)
 }
 
@@ -172,7 +185,12 @@ predict.protogarrote<-function(obj, newdata, lambda="lambda.min", type="link"){
       x<-cbind(1, xmat[,names(obj$fit$coefficients[obj$fit$coefficients !=0])[-1]])
       beta <- obj$fit$coefficients[obj$fit$coefficients !=0]
       eta <- x %*% beta
-    } else if (lambda=="all"){
+    } else if (lambda=="L1norm"){
+      x<-cbind(1, xmat[,names(obj$fit$coeffs.L1norm[obj$fit$coeffs.L1norm !=0])[-1]])
+      beta <- obj$fit$coeffs.L1norm[obj$fit$coeffs.L1norm !=0]
+      eta <- x %*% beta
+    }
+      else if (lambda=="all"){
         x <- cbind(1, xmat[,names(obj$fit$coefficients)[-1]])
         eta <- x %*% obj$coefficients
     }
@@ -192,6 +210,10 @@ predict.protogarrote<-function(obj, newdata, lambda="lambda.min", type="link"){
       x<-cbind(1, xmat)
       beta <- coefficients.protogarrote(obj)
       eta <- x %*% beta
+    } else if (lambda=="L1norm"){
+      x<-cbind(1, xmat)
+      beta <- obj$fit$coeffs.L1norm
+      eta <- x %*% beta
     } else if (lambda=="all"){
       x <- cbind(1, xmat)
       eta <- x %*% coefficients.protogarrote(obj)
@@ -203,6 +225,7 @@ predict.protogarrote<-function(obj, newdata, lambda="lambda.min", type="link"){
 
 coefficients.protogarrote<-function(obj, lambda="lambda.min"){
   if(lambda=="lambda.min") beta <- obj$fit$coefficients
+  if(lambda=="L1norm") beta <- obj$fit$coeffs.L1norm
   if(lambda=="all") beta <- obj$fit$beta
   return(beta)
 }  
@@ -225,10 +248,10 @@ plot.protogarrote<-function(obj, highlight, jitter=20){
 }
 
     
-plot.coefficients.protogarrote<-function(obj, order="none", scale=c(1,1,1,1), plot=TRUE){
+plot.coefficients.protogarrote<-function(obj, order="none", scale=c(1,1,1,1), plot=TRUE, lambda="lambda.min"){
   # obj: a protogarrote object
   # this function shows the proteomics- associated coefficients
-  beta<-coefficients.protogarrote(obj, lambda="lambda.min")
+  beta<-coefficients.protogarrote(obj, lambda=lambda)
   beta.hot<-beta[beta!=0]
   beta.x<-beta.hot[substr(names(beta.hot),1,2)=="x."]
   beta.d<-beta.hot[substr(names(beta.hot),1,2)=="d."]

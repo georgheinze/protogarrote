@@ -158,6 +158,8 @@ Let's first look at the fitted values, and compare them to the original outcomes
 ```{r}
 library(ggplot2)
 ggplot(NULL, aes(fit$fit$fitted.values, log2eGFR))+geom_point()+geom_smooth()+geom_abline(intercept=0, slope=1)
+
+ggplot(NULL, aes(fit$fit$fitted.values.L1norm, log2eGFR))+geom_point()+geom_smooth()+geom_abline(intercept=0, slope=1)
 ```
 
 
@@ -165,6 +167,10 @@ The apparent R-square:
 
 ```{r}
 cor(fit$fit$fitted.values, log2eGFR)^2
+
+cor(fit$fit$fitted.values.L1norm, log2eGFR)^2
+
+
 ```
 
 Compared to the cross-validated R-squares:
@@ -179,24 +185,43 @@ One can 'plot' the object, meaning the cross-validated prediction error (expecte
 plot.protogarrote(fit)
 ```
 
-The lambda values can be accessed. The row labels are the values of lambda1. The values in the matrix are the corresponding values of lambda2, which usually are very similar for a given lambda1.
+
+The estimated prediction errors can also be assessed as table (optimal value is in row 10, column 5):
+
+```{r}
+fit$cv.pred.err
+```
+
+
+The lambda values can be accessed. The row labels are the values of lambda1. The values in the matrix are the corresponding values of lambda2, which usually are very similar for a given lambda1, but control the number of selected variables.
 
 ```{r}
 fit$lambda
 ```
 
+The number of selected variables:
+
+```{r}
+fit$df
+```
+
+The sum (L1norm) of shrinkage factors:
+
+```{r}
+fit$L1norm
+```
+
+
 
 Let's have a look at the optimal coefficients:
 
 ```{r}
-plot.coefficients.protogarrote(fit, order="d")
+plot.coefficients.protogarrote(fit, order="d", lambda="lambda.min")
+
+plot.coefficients.protogarrote(fit, order="d", lambda="L1norm")
 ```
 
-To see the number of selected biomarkers, one can assess the L1 norm, e.g. here at the smallest ridge penalty.
 
-```{r}
-apply(coef(fit$glmnet.fit2[[11]]),2,sum)
-```
 
 
 
@@ -213,13 +238,15 @@ plot(prop.nonzero, penalties, ylim=c(0,1))
 Now refit the linear model. The penalties are defined for all variables, i.e., for the x, the d, and the two clinical variables (which get no penalty):
 
 ```{r}
-fit2 <- protogarrote(data.obj, family="gaussian", cv=10, outer=2, nlambda=c(11,11), penalties=c(penalties, penalties, 0,0))
+set.seed(4821)
+fit2 <- protogarrote(data.obj, family="gaussian", cv=10, outer=3, nlambda=c(5,11), penalties=c(penalties, penalties, 0,0))
 ```
 
 Let's have a look at the coefficients:
 
 ```{r}
 plot.coefficients.protogarrote(fit, order="d")
+plot.coefficients.protogarrote(fit, order="d", lambda="L1norm")
 ```
 
 
